@@ -79,25 +79,12 @@ def calculateTFIDF(documents):
             
 #need to calcualte the simularity between two docs to get the weights 
 def calcualte_cosine_sim(reviews,tfidf_v):
-    #We build a NxN martix i think. That holds the sim score between every two documents
-    N = len(tfidf_v)
-    if N != len(reviews):
-        print("SOMETHING WENT WRONG")
-        return
-    
-    mat = []
-    for i in range(N):
-        row = []
-        for j in range(N):
-            if i==j: row.append(1)
-            else:
-                doc1 = tfidf_v[i]
-                doc2 = tfidf_v[j]
-                cos_sim = np.dot(doc1,doc2) /(norm(doc1)*norm(doc2))
-                row.append(cos_sim)
-        mat.append(row)
-    
-    return np.matrix(mat)
+    # #We build a NxN martix i think. That holds the sim score between every two documents
+    tfidf_matrix = np.array(tfidf_v)
+    dot_products = tfidf_matrix @ tfidf_matrix.T
+    norms = norm(tfidf_matrix, axis=1)
+    mat = dot_products / (norms[:,None] * norms[None,:])
+    return mat
 
 
 main()
