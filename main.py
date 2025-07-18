@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from numpy.linalg import norm
 import json, string
 from collections import Counter
 
@@ -8,30 +9,23 @@ sentiment_Ratings = {
     "neutral":[3.0],
     "bad":[1.0,2.0]
 }
-documents = []
 stopwords = pd.read_csv("stopwords1.csv")
-
 def main():
-    reviews = {}
-    with open("AMAZON_FASHION_5.json") as f:
+    documents = {} #{index: (rating,review as a list of terms)}
+    i =0
+    with open("5tester.json") as f:
         #read each json but only take the rating and the review
         for line in f:
             r = json.loads(line)
-            #I'm assuming "overall" and "reviewText" will always be there - should put checks in later?
-            #or user can input what the columns names are, so diff files can be inputted
             rating = int(r.get('overall') or 0)
             text = preprocessing((r.get('reviewText', '')).strip())
-            
-            #places all documents as strings with their respective rating 
-            #not sure if best way to store info yet
-            if rating not in reviews:
-                reviews[rating] = [text]
-            else:
-                reviews[rating].append(text)
+            documents[i] = (rating,text)
+            i+=1
+
         
-    tfidf_vectors = calculateTFIDF()
-    calcualte_cosine_sim(reviews, tfidf_vectors)
-    print("wait")
+    tfidf_vectors = calculateTFIDF(documents)
+    print(calcualte_cosine_sim(documents, tfidf_vectors))
+
     
     
         
@@ -45,34 +39,33 @@ def preprocessing(text):
     #remove stop words and words with numbers
     temp = text.split()
     temp = [w for w in temp if w not in stopwords.values and not any(c.isdigit() for c in w)]
-    documents.append(temp)
-    text = " ".join(temp)
 
-    return text
+    return temp
 
-def calculateTFIDF():
+def calculateTFIDF(documents):
     N = len(documents)
     df = {}
 
-    #Firstly getting how many documents the terms appear in
-    for doc in documents:
+    #Firstly getting how many documents the terms appear in  
+    for i, (r, doc) in documents.items():
         terms = set(doc)
         for t in terms:
             if t not in df:
                 df[t] = 1
             else:
                 df[t] += 1
-    
+
+
     #calculating the idf for each term
     idf ={}
     for t in df:
         idf[t] = np.log(N / df[t])
 
     all_tfidf_vactors = []
-    allterms = np.sort(list(df.keys()))
+    allterms = np.sort(list(df.keys())) #alphabetize
 
     #creating tf-idf vectors for every document. Very sparse and filled with 0s
-    for doc in documents:
+    for i, (r, doc) in documents.items():
         tf = Counter(doc) #calculates term frequency for doc
         doc_tfidf = []
 
@@ -86,7 +79,25 @@ def calculateTFIDF():
             
 #need to calcualte the simularity between two docs to get the weights 
 def calcualte_cosine_sim(reviews,tfidf_v):
-    pass
+    #We build a NxN martix i think. That holds the sim score between every two documents
+    N = len(tfidf_v)
+    if N != len(reviews):
+        print("SOMETHING WENT WRONG")
+        return
+    
+    mat = []
+    for i in range(N):
+        row = []
+        for j in range(N):
+            if i==j: row.append(1)
+            else:
+                doc1 = tfidf_v[i]
+                doc2 = tfidf_v[j]
+                cos_sim = np.dot(doc1,doc2) /(norm(doc1)*norm(doc2))
+                row.append(cos_sim)
+        mat.append(row)
+    
+    return np.matrix(mat)
 
 
 main()
